@@ -1,0 +1,11 @@
+# Ignore "notes" directory
+notes/
+
+# Ignore data files
+*.csv
+
+# Ignore "scripts" directory
+scripts/
+
+# Ignore R artifacts
+.R*

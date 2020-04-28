@@ -1,0 +1,30 @@
+---
+title: "Prediction Assignment"
+author: "Fahmi Adi Nugraha"
+date: "04/27/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = 'center')
+```
+
+# Overview
+
+The goal of this assignment is to train a machine learning algorithm to identify
+the quality of a specific exercise routine, namely, bicep curls using dumbbells.
+In the provided data, participants of a study were trained to perform bicep
+curls correctly as well as incorrectly, emulating four common mistakes.
+Each of these five "types" of bicep curls have been given their own category
+labeled "A" through "E". Throughout each session, the motion of each participant
+was measured using accelerometers worn on the arms and waist. The trained
+machine learning algorithm should be able to correctly distiguish between each
+category of bicep curls using the measurements from the accelerometer.
+
+# Data cleaning
+
+# Feature selection
+
+# Model training
+
+# Summary
