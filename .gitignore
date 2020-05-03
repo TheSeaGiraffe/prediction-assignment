@@ -10,5 +10,7 @@ scripts/
 # Ignore R artifacts
 .R*
 
-# Ignore .Rda files
-*.Rda
+# Ignore the following dirs containing .Rda files
+r_session_data/
+saved_models/
+saved_splits/

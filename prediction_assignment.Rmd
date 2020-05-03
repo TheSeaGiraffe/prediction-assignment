@@ -28,20 +28,31 @@ category of bicep curls using the measurements from the accelerometer.
 ### Remove features with missing values
 
 We begin the entire process of training a machine learning algorithm by tidying
-up the data. A quick pass through the `glimpse()` function reveals a large
-number of features with missing values.
+up the data. We will first load the data and then split it into training and
+test sets with a 70/30 ratio.
 
-```{r load and glimpse data, warning = F, message = F}
+```{r load and split data, warning = FALSE, message = FALSE}
 # Load the necessary libraries
 library(tidyverse)
 library(magrittr)
 
 # Load the data
-pml_training <- read_csv('pml_training.csv')
-pml_testing <- read_csv('pml_testing.csv')
+pml_data <- read_csv('pml_training.csv')
 
+# Split data into training and test sets
+set.seed(1234)
+
+in_train <- createDataPartition(pml_data$classe, p = 0.7, list = F)
+pml_train <- pml_data[in_train, ]
+pml_test <- pml_data[-in_train, ]
+```
+
+A quick pass of the training set through the `glimpse()` function reveals a
+large number of features with missing values.
+
+```{r glimpse data}
 # Glimpse training data
-pml_training %>% glimpse()
+pml_train %>% glimpse()
 ```
 
 We can get an exact count of the number of missing values in each feature as
@@ -49,16 +60,18 @@ shown below.
 
 ```{r missing value counts}
 # Get counts of missing values in each feature
-pml_count_missing <- colSums(is.na(pml_training)) %>%
+pml_missing <- colSums(is.na(pml_train)) %>%
     enframe(name = 'col_name', value = 'num_missing')
-pml_count_missing %>% count(num_missing)
+pml_missing_counts <- pml_missing %>% count(num_missing)
+pml_missing_counts
 ```
 
-Here we see that there are 100 features with at least 19,216 missing values. If
-we consider that there are a total of `r dim(pml_training)[1]` training
-examples, it's clear that imputation or other strategies to "fill in" the
-missing data won't be very effective. Thus, we will be dropping all columns with
-missing values leaving us with 60 variables from the orignial 160.
+Here we see that there are 100 features with at least
+`r pml_missing_counts %>% pluck('num_missing', 2)` missing values. If we
+consider that there are a total of `r dim(pml_train)[1]` training examples, it's
+clear that imputation or other strategies to "fill in" the missing data won't be
+very effective. Thus, we will be dropping all columns with missing values
+leaving us with 60 variables from the orignial 160.
 
 ```{r remove cols with missing vals, message = F, warning = F}
 # Get column names
@@ -66,7 +79,7 @@ cols_missing_data <- pml_count_missing %>% filter(num_missing > 0) %>%
     pluck('col_name')
 
 # Remove all cols with missing data
-pml_training %<>% select(-all_of(cols_missing_data))
+pml_train %<>% select(-all_of(cols_missing_data))
 ```
 
 ### Remove unnecessary features
@@ -87,13 +100,13 @@ If we look at this variable, we see that it's simply a copy of the index of the
 original data structure that was used to store the data.
 
 ```{r view X1 var}
-pml_training %>% select(X1) %>% head(10)
+pml_train %>% select(X1) %>% head(10)
 ```
 
 For this reason, it seems safe to omit this feature.
 
 ```{r remove X1 var}
-pml_training %<>% select(-X1)
+pml_train %<>% select(-X1)
 ```
 
 #### `user_name` and `\*timestamp\*`
@@ -106,7 +119,7 @@ features.
 ```{r remove user_name and timestamp vars}
 cols_name_timestamp <- c('user_name', 'raw_timestamp_part_1',
                          'raw_timestamp_part_2', 'cvtd_timestamp')
-pml_training %<>% select(-all_of(cols_name_timestamp))
+pml_train %<>% select(-all_of(cols_name_timestamp))
 ```
 
 #### `new_window` and `num_window`
@@ -119,7 +132,7 @@ removed.
 
 ```{r remove window vars}
 cols_window <- c('new_window', 'num_window')
-pml_training %<>% select(-all_of(cols_window))
+pml_train %<>% select(-all_of(cols_window))
 ```
 
 ## Convert `classe` feature to categorical variable
@@ -127,10 +140,12 @@ pml_training %<>% select(-all_of(cols_window))
 If we go back to the output of the glimpse function from one of the previous
 sub-sections, we see that the `classe` feature is of type `char`. We'll need to
 convert this feature to type `fct` in order for our classification algorithms to
-work properly.
+work properly. We will also convert the `classe` feature in the test set to a
+factor as well in order to obtain model predictions later on.
 
 ```{r convert classe to fct}
-pml_training %<>% mutate(classe = as.factor(classe))
+pml_train %<>% mutate(classe = as.factor(classe))
+pml_test %<>% mutate(classe = as.factor(classe))
 ```
 
 ## Identify outliers and other problems with the remaining features
@@ -138,12 +153,12 @@ pml_training %<>% mutate(classe = as.factor(classe))
 Here we'll quickly print out summary statistics and rough histograms for each of
 the remaining features.
 
-```{r feature summary stats}
+```{r feature summary stats, message = FALSE}
 # Load the skimr library
 library(skimr)
 
 # Print summary
-pml_training %>% select(-classe) %>% skim()
+pml_train %>% select(-classe) %>% skim()
 ```
 
 From the resulting output, we can see that very few of the variables have
@@ -152,12 +167,12 @@ in the `magnet_dumbbell_y` feature. However, this isn't really a problem for us
 as the classifier that we plan to train is fairly robust to outliers. We can go
 a bit further and take a look at a summary of the contents of each feature.
 
-```{r xray anomalies}
+```{r xray anomalies, message = FALSE}
 # Load necessary library
 library(xray)
 
 # Print summary of anomalies
-pml_training %>% select(-classe) %>% anomalies()
+pml_train %>% select(-classe) %>% anomalies()
 ```
 
 As we saw before, none of the remaining features has missing values as can be
@@ -171,7 +186,7 @@ be periods where there is no motion detected in the forearms and the waist
 Let us also take a quick look at the number of observations per class.
 
 ```{r obs per class}
-pml_training %>% count(classe)
+pml_train %>% count(classe)
 ```
 
 The classes appear to be fairly balanced although there do seem to be more
@@ -184,29 +199,63 @@ With our remaining features we will now perform feature selection using
 Correlation-based Feature Selection (CFS). For our purposes, we will use the
 implementation of CFS provided in the `FSelector` package.
 
-```{r feature selection using cfs}
+```{r feature selection using cfs, message = FALSE}
 # Load FSelector package
 library(FSelector)
 
 # Perform feature selection using CFS
-best_features <- cfs(classe ~ ., pml_training)
+best_features <- cfs(classe ~ ., pml_train)
 
 # Display the selected features
 best_features
 ```
 
 The algorithm has selected `r length(best_features)` variables out of a total
-of `r dim(pml_training)[2]` features which is a significant reduction. Before
+of `r dim(pml_train)[2]` features which is a significant reduction. Before
 we train our model, let us remove all of the unnecessary features from our
 training set.
 
 ```{r remove unselected features}
-pml_training %<>% select(all_of(features_cfs), classe)
+pml_train_best_feats <- pml_train %>% select(all_of(features_cfs), classe)
 ```
 
 # Model training and evaluation
 
-We will now train our classifier. For this project, we will use a regularized
-random forest
+For this project, we will use an XGBoost tree classifier. The training process
+includes hyperparameter tuning using a grid search with 5-fold cross validation
+to select the best set of hyperparameters for our model. Additionally, we will
+be making use of the `doParallel` library in order to speed up model training.
+
+```{r train xgbTree model, eval = FALSE}
+# Load the necessary libraries
+library(caret)
+library(xgboost)
+library(doParallel)
+
+# Set cross validation parameters for caret's train function and create
+# hyperparamter grid
+tr_ctrl <- trainControl(method = 'cv', number = 5)
+xgb_tune <- expand.grid(nrounds = c(50, 100, 150),
+                        max_depth = c(1, 3, 5, 7),
+                        eta = c(0.01, 0.1, 0.5),
+                        gamma = c(0.1, 0.5, 1, 5, 10, 50),
+                        colsample_bytree = c(1, 3, 5),
+                        min_child_weight = c(1, 3, 5),
+                        subsample = c(0.5, 0.6, 0.7, 0.8))
+
+# Train model with parallel processing enabled
+set.seed(56765)
+
+cl <- makeForkCluster(detectCores() - 1)
+registerDoParallel(cl)
+pml_xgb <- train(classe ~ ., data = pml_train_best_feats, method = 'xgbTree',
+                 trControl = tr_ctrl, tuneGrid = xgb_tune, nthread = 1)
+stopCluster(cl)
+```
+
+```{r load saved model, include = FALSE}
+# Load trained model
+load('saved_model/pml_xgb.Rda')
+```
 
 # Summary
