@@ -180,6 +180,33 @@ further transformations on the features are required.
 
 # Feature selection
 
-# Model training
+With our remaining features we will now perform feature selection using
+Correlation-based Feature Selection (CFS). For our purposes, we will use the
+implementation of CFS provided in the `FSelector` package.
+
+```{r feature selection using cfs}
+# Load FSelector package
+library(FSelector)
+
+# Perform feature selection using CFS
+best_features <- cfs(classe ~ ., pml_training)
+
+# Display the selected features
+best_features
+```
+
+The algorithm has selected `r length(best_features)` variables out of a total
+of `r dim(pml_training)[2]` features which is a significant reduction. Before
+we train our model, let us remove all of the unnecessary features from our
+training set.
+
+```{r remove unselected features}
+pml_training %<>% select(all_of(features_cfs), classe)
+```
+
+# Model training and evaluation
+
+We will now train our classifier. For this project, we will use a regularized
+random forest
 
 # Summary
