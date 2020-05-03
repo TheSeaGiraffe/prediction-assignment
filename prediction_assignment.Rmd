@@ -21,7 +21,162 @@ was measured using accelerometers worn on the arms and waist. The trained
 machine learning algorithm should be able to correctly distiguish between each
 category of bicep curls using the measurements from the accelerometer.
 
-# Data cleaning
+# EDA and Data cleaning
+
+## Feature removal
+
+### Remove features with missing values
+
+We begin the entire process of training a machine learning algorithm by tidying
+up the data. A quick pass through the `glimpse()` function reveals a large
+number of features with missing values.
+
+```{r load and glimpse data, warning = F, message = F}
+# Load the necessary libraries
+library(tidyverse)
+library(magrittr)
+
+# Load the data
+pml_training <- read_csv('pml_training.csv')
+pml_testing <- read_csv('pml_testing.csv')
+
+# Glimpse training data
+pml_training %>% glimpse()
+```
+
+We can get an exact count of the number of missing values in each feature as
+shown below.
+
+```{r missing value counts}
+# Get counts of missing values in each feature
+pml_count_missing <- colSums(is.na(pml_training)) %>%
+    enframe(name = 'col_name', value = 'num_missing')
+pml_count_missing %>% count(num_missing)
+```
+
+Here we see that there are 100 features with at least 19,216 missing values. If
+we consider that there are a total of `r dim(pml_training)[1]` training
+examples, it's clear that imputation or other strategies to "fill in" the
+missing data won't be very effective. Thus, we will be dropping all columns with
+missing values leaving us with 60 variables from the orignial 160.
+
+```{r remove cols with missing vals, message = F, warning = F}
+# Get column names
+cols_missing_data <- pml_count_missing %>% filter(num_missing > 0) %>%
+    pluck('col_name')
+
+# Remove all cols with missing data
+pml_training %<>% select(-all_of(cols_missing_data))
+```
+
+### Remove unnecessary features
+
+Out of the remaining features, the following seem fit for removal
+
+- `X1`
+- `user_name`
+- `raw_timestamp_part_1`
+- `raw_timestamp_part_2`
+- `cvtd_timestamp`
+- `new_window`
+- `num_window`
+
+#### `X1`
+
+If we look at this variable, we see that it's simply a copy of the index of the
+original data structure that was used to store the data.
+
+```{r view X1 var}
+pml_training %>% select(X1) %>% head(10)
+```
+
+For this reason, it seems safe to omit this feature.
+
+```{r remove X1 var}
+pml_training %<>% select(-X1)
+```
+
+#### `user_name` and `\*timestamp\*`
+
+It's my understanding that the ultimate goal of our trainined algorithm is to
+be able to predict the quality of the bicep curls irrespective of who performed
+them or when they were performed. Thus, it seems reasonable to remove these
+features.
+
+```{r remove user_name and timestamp vars}
+cols_name_timestamp <- c('user_name', 'raw_timestamp_part_1',
+                         'raw_timestamp_part_2', 'cvtd_timestamp')
+pml_training %<>% select(-all_of(cols_name_timestamp))
+```
+
+#### `new_window` and `num_window`
+
+These "features" are actually the values of the parameters of the sliding window
+that the researchers in the original study used to extract features related to
+the euler angles of each sensor. Due to this, it seems safe to assume that these
+values are not related at all to the quality of the bicep curls and can be
+removed.
+
+```{r remove window vars}
+cols_window <- c('new_window', 'num_window')
+pml_training %<>% select(-all_of(cols_window))
+```
+
+## Convert `classe` feature to categorical variable
+
+If we go back to the output of the glimpse function from one of the previous
+sub-sections, we see that the `classe` feature is of type `char`. We'll need to
+convert this feature to type `fct` in order for our classification algorithms to
+work properly.
+
+```{r convert classe to fct}
+pml_training %<>% mutate(classe = as.factor(classe))
+```
+
+## Identify outliers and other problems with the remaining features
+
+Here we'll quickly print out summary statistics and rough histograms for each of
+the remaining features.
+
+```{r feature summary stats}
+# Load the skimr library
+library(skimr)
+
+# Print summary
+pml_training %>% select(-classe) %>% skim()
+```
+
+From the resulting output, we can see that very few of the variables have
+distributions approaching normal. We can also see what appears to be an outlier
+in the `magnet_dumbbell_y` feature. However, this isn't really a problem for us
+as the classifier that we plan to train is fairly robust to outliers. We can go
+a bit further and take a look at a summary of the contents of each feature.
+
+```{r xray anomalies}
+# Load necessary library
+library(xray)
+
+# Print summary of anomalies
+pml_training %>% select(-classe) %>% anomalies()
+```
+
+As we saw before, none of the remaining features has missing values as can be
+seen from the `qNA` and `qBlank` columns. There do appear to be an excess of
+zeros in some of the features but if we look at the names of these features
+they all seem to be measuring movement in the forearm and waist. Considering the
+exercise that is being measured is bicep curls, it makes sense that there would
+be periods where there is no motion detected in the forearms and the waist
+(particularly in the y-axis in the case of the waist measurement).
+
+Let us also take a quick look at the number of observations per class.
+
+```{r obs per class}
+pml_training %>% count(classe)
+```
+
+The classes appear to be fairly balanced although there do seem to be more
+observations in the `A` classe compared to the other classes. Overall, no
+further transformations on the features are required.
 
 # Feature selection
 

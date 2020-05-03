@@ -9,3 +9,6 @@ scripts/
 
 # Ignore R artifacts
 .R*
+
+# Ignore .Rda files
+*.Rda
