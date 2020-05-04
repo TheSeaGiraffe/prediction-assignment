@@ -255,7 +255,65 @@ stopCluster(cl)
 
 ```{r load saved model, include = FALSE}
 # Load trained model
-load('saved_model/pml_xgb.Rda')
+load('trained_model/pml_xgb.Rda')
 ```
+
+After training our model it is now time to evaluate its performance. Below is
+the confusion matrix of our model's predictions on the test set.
+
+```{r plot confusion matrix}
+# Save confusion matrix object
+conf_mat <- confusionMatrix(predict(pml_xgb, pml_test), pml_test$classe,
+                            mode = 'prec_recall')
+
+# Get and prep table from confusion matrix objec
+conf_mat_tibble <- conf_mat$table %>% as_tibble() %>%
+    rename(prediction = Prediction, actual = Reference, freq = n)
+
+# Plot confusion matrix
+conf_mat_tibble %>% ggplot(aes(x = actual, y = prediction, fill = freq)) +
+    geom_tile() +
+    geom_text(aes(label = freq), size = 3, color = 'gray20') +
+    scale_fill_gradient(low = 'white', high = 'steelblue', name = 'Frequency') +
+    theme_bw() +
+    theme(plot.title = element_text(hjust = 0.5)) +
+    labs(title = 'Confusion Matrix of XGBoost Model Predictions')
+```
+
+Here we can see that the model seems to do a good job overall in predicting the
+correct classes. This is particularly true of the `E` class, where the majority
+of the predictions were correct with few false positives and false negatives.
+While the other classes had comparitively more false positives and false
+negatives, the total amounts of both types of errors is small relative to the
+total number of instances in each class. This is reflected in the per-class
+precision, recall, and F1 metrics shown below.
+
+```{r display per-class metrics}
+# Display the per-class metrics
+conf_mat %>% as.matrix(what = 'classes') %>%
+    as.data.frame() %>% .[5:7 , ] %>%
+    kable() %>%
+    kable_styling(bootstrap_options = 'striped', full_width = F)
+```
+
+The values of each metric for each class are all close to 1 indicating that the
+model is able to correctly identify a given class over the vast majority of
+instances.
+
+```{r display overall metrics}
+# Load the necessary libraries
+library(knitr)
+library(kableExtra)
+
+# Display the overall metrics
+conf_mat %>% as.matrix(what = 'overall') %>%
+    as.data.frame() %>%
+    rename(value = V1) %>%
+    kable() %>%
+    kable_styling(bootstrap_options = 'striped', full_width = F)
+```
+
+The value model's accuracy and kappa metrics also seem to show that the model's
+performance is quite good.
 
 # Summary
