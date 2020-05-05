@@ -10,7 +10,8 @@ scripts/
 # Ignore R artifacts
 .R*
 
-# Ignore the following dirs containing .Rda files
-r_session_data/
-saved_models/
-saved_splits/
+# Ignore .Rda files
+*.Rda
+
+# Ignore rsconnect directory
+rsconnect/

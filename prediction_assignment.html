@@ -5006,6 +5006,8 @@ best_features</code></pre>
 </div>
 <div id="model-training-and-evaluation" class="section level1">
 <h1>Model training and evaluation</h1>
+<div id="training-the-model" class="section level2">
+<h2>Training the model</h2>
 <p>For this project, we will use an XGBoost tree classifier. The training process includes hyperparameter tuning using a grid search with 5-fold cross validation to select the best set of hyperparameters for our model. Additionally, we will be making use of the <code>doParallel</code> library in order to speed up model training.</p>
 <pre class="r"><code># Load the necessary libraries
 library(xgboost)
@@ -5030,7 +5032,23 @@ registerDoParallel(cl)
 pml_xgb &lt;- train(classe ~ ., data = pml_train_best_feats, method = &#39;xgbTree&#39;,
                  trControl = tr_ctrl, tuneGrid = xgb_tune, nthread = 1)
 stopCluster(cl)</code></pre>
-<p>After training our model it is now time to evaluate its performance. Below is the confusion matrix of our model’s predictions on the test set.</p>
+</div>
+<div id="evaluating-the-model" class="section level2">
+<h2>Evaluating the model</h2>
+<div id="out-of-sample-error" class="section level3">
+<h3>Out-of-sample error</h3>
+<p>Before we evaluate our model, it is worth taking a look at the out-of-sample error rate of our model. We will also compute and display the mean out-of-sample accuracy as that is the standard means of measuring the performance of a classifier.</p>
+<pre class="r"><code># Get mean out-of-sample accuracy
+oos_accuracy &lt;- pml_xgb$resample %&gt;%
+    summarize(oos_accuracy = mean(Accuracy)) %&gt;%
+    pluck(&#39;oos_accuracy&#39;)
+
+oos_error &lt;- 1 - oos_accuracy</code></pre>
+<p>We find that the out-of-sample accuracy is 0.9757 while the out-of-sample error is 0.0243. Both metrics indicate that our model will perform well on new data.</p>
+</div>
+<div id="confusion-matrix-precision-recall-and-f1-score" class="section level3">
+<h3>Confusion matrix, precision, recall, and F1 score</h3>
+<p>Below is the confusion matrix of our model’s predictions on the test set.</p>
 <pre class="r"><code># Save confusion matrix object
 conf_mat &lt;- confusionMatrix(predict(pml_xgb, pml_test), pml_test$classe,
                             mode = &#39;prec_recall&#39;)
@@ -5141,10 +5159,12 @@ F1
 </tbody>
 </table>
 <p>The values of each metric for each class are all close to 1 indicating that the model is able to correctly identify a given class over the vast majority of instances.</p>
-<pre class="r"><code># Display the overall metrics
-conf_mat %&gt;% as.matrix(what = &#39;overall&#39;) %&gt;%
+<pre class="r"><code>overall_metrics &lt;- conf_mat %&gt;% as.matrix(what = &#39;overall&#39;) %&gt;%
     as.data.frame() %&gt;%
-    rename(value = V1) %&gt;%
+    rename(value = V1)
+
+# Display the overall metrics
+overall_metrics %&gt;%
     knitr::kable() %&gt;%
     kableExtra::kable_styling(bootstrap_options = &#39;striped&#39;, full_width = F,
                               position = &#39;center&#39;)</code></pre>
@@ -5217,7 +5237,9 @@ NaN
 </tr>
 </tbody>
 </table>
-<p>The value of the model’s accuracy and kappa metrics also seem to show that the model’s overall performance is quite good.</p>
+<p>The value of the model’s accuracy and kappa metrics also seem to show that the model’s overall performance is quite good. In fact, the accuracy is slightly higher than the out-of-sample accuracy that we calculated earlier which is surprising given that the cross-validation error is a pessimistic estimate. The test set accuracy gives us a slightly lower error of 0.0168.</p>
+</div>
+</div>
 </div>
 
 
