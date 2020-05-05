@@ -11,6 +11,6 @@ option in the `train xgb model` code block to `TRUE` and either set the `eval` o
 the `load saved model` to `FALSE` or remove the block entirely. If you don't intend on
 knitting the report yourself, you can simply read the pre-knit HTML file.
 
-[1]: (http://groupware.les.inf.puc-rio.br/har)
-[2]: (https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv)
-[3]: (https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv)
+[1]: http://groupware.les.inf.puc-rio.br/har
+[2]: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv
+[3]: https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv
