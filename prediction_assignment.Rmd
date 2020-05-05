@@ -1,7 +1,7 @@
 ---
 title: "Prediction Assignment"
 author: "Fahmi Adi Nugraha"
-date: "04/27/2020"
+date: "05/01/2020"
 output: html_document
 ---
 
@@ -35,9 +35,10 @@ test sets with a 70/30 ratio.
 # Load the necessary libraries
 library(tidyverse)
 library(magrittr)
+library(caret)
 
 # Load the data
-pml_data <- read_csv('pml_training.csv')
+pml_data <- read_csv('pml-training.csv')
 
 # Split data into training and test sets
 set.seed(1234)
@@ -63,7 +64,11 @@ shown below.
 pml_missing <- colSums(is.na(pml_train)) %>%
     enframe(name = 'col_name', value = 'num_missing')
 pml_missing_counts <- pml_missing %>% count(num_missing)
-pml_missing_counts
+
+pml_missing_counts %>%
+    knitr::kable() %>%
+    kableExtra::kable_styling(bootstrap_options = 'striped',
+                              position = 'center')
 ```
 
 Here we see that there are 100 features with at least
@@ -75,7 +80,7 @@ leaving us with 60 variables from the orignial 160.
 
 ```{r remove cols with missing vals, message = F, warning = F}
 # Get column names
-cols_missing_data <- pml_count_missing %>% filter(num_missing > 0) %>%
+cols_missing_data <- pml_missing %>% filter(num_missing > 0) %>%
     pluck('col_name')
 
 # Remove all cols with missing data
@@ -109,7 +114,7 @@ For this reason, it seems safe to omit this feature.
 pml_train %<>% select(-X1)
 ```
 
-#### `user_name` and `\*timestamp\*`
+#### `user_name` and `&ast;timestamp&ast;`
 
 It's my understanding that the ultimate goal of our trainined algorithm is to
 be able to predict the quality of the bicep curls irrespective of who performed
@@ -172,7 +177,14 @@ a bit further and take a look at a summary of the contents of each feature.
 library(xray)
 
 # Print summary of anomalies
-pml_train %>% select(-classe) %>% anomalies()
+pml_train %>%
+    select(-classe) %>%
+    anomalies() %>%
+    .$variables %>%
+    knitr::kable() %>%
+    kableExtra::kable_styling(bootstrap_options = 'striped',
+                              full_width = F,
+                              position = 'center')
 ```
 
 As we saw before, none of the remaining features has missing values as can be
@@ -186,7 +198,12 @@ be periods where there is no motion detected in the forearms and the waist
 Let us also take a quick look at the number of observations per class.
 
 ```{r obs per class}
-pml_train %>% count(classe)
+pml_train %>% count(classe) %>% ggplot(aes(classe, n)) +
+    geom_col() +
+    theme_bw() +
+    labs(title = 'Number of Observations per Class',
+         x = 'Class', y = 'Frequency') +
+    theme(plot.title = element_text(hjust = 0.5))
 ```
 
 The classes appear to be fairly balanced although there do seem to be more
@@ -216,7 +233,7 @@ we train our model, let us remove all of the unnecessary features from our
 training set.
 
 ```{r remove unselected features}
-pml_train_best_feats <- pml_train %>% select(all_of(features_cfs), classe)
+pml_train_best_feats <- pml_train %>% select(all_of(best_features), classe)
 ```
 
 # Model training and evaluation
@@ -228,7 +245,6 @@ be making use of the `doParallel` library in order to speed up model training.
 
 ```{r train xgbTree model, eval = FALSE}
 # Load the necessary libraries
-library(caret)
 library(xgboost)
 library(doParallel)
 
@@ -292,8 +308,9 @@ precision, recall, and F1 metrics shown below.
 # Display the per-class metrics
 conf_mat %>% as.matrix(what = 'classes') %>%
     as.data.frame() %>% .[5:7 , ] %>%
-    kable() %>%
-    kable_styling(bootstrap_options = 'striped', full_width = F)
+    knitr::kable() %>%
+    kableExtra::kable_styling(bootstrap_options = 'striped', full_width = F,
+                              position = 'center')
 ```
 
 The values of each metric for each class are all close to 1 indicating that the
@@ -301,19 +318,14 @@ model is able to correctly identify a given class over the vast majority of
 instances.
 
 ```{r display overall metrics}
-# Load the necessary libraries
-library(knitr)
-library(kableExtra)
-
 # Display the overall metrics
 conf_mat %>% as.matrix(what = 'overall') %>%
     as.data.frame() %>%
     rename(value = V1) %>%
-    kable() %>%
-    kable_styling(bootstrap_options = 'striped', full_width = F)
+    knitr::kable() %>%
+    kableExtra::kable_styling(bootstrap_options = 'striped', full_width = F,
+                              position = 'center')
 ```
 
-The value model's accuracy and kappa metrics also seem to show that the model's
-performance is quite good.
-
-# Summary
+The value of the model's accuracy and kappa metrics also seem to show that the
+model's overall performance is quite good.
