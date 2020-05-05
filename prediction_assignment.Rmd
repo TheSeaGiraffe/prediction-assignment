@@ -238,6 +238,8 @@ pml_train_best_feats <- pml_train %>% select(all_of(best_features), classe)
 
 # Model training and evaluation
 
+## Training the model
+
 For this project, we will use an XGBoost tree classifier. The training process
 includes hyperparameter tuning using a grid search with 5-fold cross validation
 to select the best set of hyperparameters for our model. Additionally, we will
@@ -274,8 +276,31 @@ stopCluster(cl)
 load('trained_model/pml_xgb.Rda')
 ```
 
-After training our model it is now time to evaluate its performance. Below is
-the confusion matrix of our model's predictions on the test set.
+## Evaluating the model
+
+### Out-of-sample error
+
+Before we evaluate our model, it is worth taking a look at the out-of-sample
+error rate of our model. We will also compute and display the mean out-of-sample
+accuracy as that is the standard means of measuring the performance of a
+classifier.
+
+```{r out of sample error}
+# Get mean out-of-sample accuracy
+oos_accuracy <- pml_xgb$resample %>%
+    summarize(oos_accuracy = mean(Accuracy)) %>%
+    pluck('oos_accuracy')
+
+oos_error <- 1 - oos_accuracy
+```
+
+We find that the out-of-sample accuracy is `r round(oos_accuracy, 4)` while the
+out-of-sample error is `r round(1 - oos_accuracy, 4)`. Both metrics indicate
+that our model will perform well on new data.
+
+### Confusion matrix, precision, recall, and F1 score
+
+Below is the confusion matrix of our model's predictions on the test set.
 
 ```{r plot confusion matrix}
 # Save confusion matrix object
@@ -318,14 +343,26 @@ model is able to correctly identify a given class over the vast majority of
 instances.
 
 ```{r display overall metrics}
-# Display the overall metrics
-conf_mat %>% as.matrix(what = 'overall') %>%
+overall_metrics <- conf_mat %>% as.matrix(what = 'overall') %>%
     as.data.frame() %>%
-    rename(value = V1) %>%
+    rename(value = V1)
+
+# Display the overall metrics
+overall_metrics %>%
     knitr::kable() %>%
     kableExtra::kable_styling(bootstrap_options = 'striped', full_width = F,
                               position = 'center')
 ```
 
+```{r get test set error, include = FALSE}
+# Get error
+test_set_accuracy <- overall_metrics %>% pluck('value', 1)
+test_set_error <- 1 - test_set_accuracy
+```
+
 The value of the model's accuracy and kappa metrics also seem to show that the
-model's overall performance is quite good.
+model's overall performance is quite good. In fact, the accuracy is slightly
+higher than the out-of-sample accuracy that we calculated earlier which is
+surprising given that the cross-validation error is a pessimistic estimate. The
+test set accuracy gives us a slightly lower error of
+`r round(test_set_error, 4)`.
